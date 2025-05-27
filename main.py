@@ -6,21 +6,23 @@ load_dotenv()
 my_sql_password = os.environ.get("MYSQL_PASSWORD")
 name_db = 'tasks_db'
 
-def create_db():
+
+
+
+
+
+def create_db(name_db=name_db, password=my_sql_password):
     #подключается к серверу бд и создает новую бд если ее еще не было
     try:
         with connect(
             host="localhost",
             user = 'root',
-            password = my_sql_password,
+            password = password,
         ) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("SHOW DATABASES")
                 list_db = cursor.fetchall()
-                new_list_db = []
-                for i in list_db:
-                    for j in i:
-                        new_list_db.append(j)
+                new_list_db = [item for tuple in list_db for item in tuple]
                 if name_db in new_list_db:
                     return
                 else:
@@ -30,18 +32,26 @@ def create_db():
         print(e)
 
 
-def connect_db():
+def connect_db(host='localhost', name_user='root', password=my_sql_password, name_db=name_db):
     try:
         connection = connect(
-            host="localhost",
-            user = 'root',
-            password = my_sql_password,
-            database=name_db
+            host = host,
+            user = name_user,
+            password = password,
+            database = name_db
         )
         return connection
     except Error as e:
         print(e)
         return 
+
+def chek_rows(cursor):
+    rows = cursor.rowcount
+    if rows != 0:
+        print("Успешно!")
+        return
+    print('Введен не существующий id')
+
 
 
 def create_table(connect=connect_db()):
@@ -62,7 +72,8 @@ def create_table(connect=connect_db()):
     except Error as e:
         print(e)
         return
-    
+
+
 def create_task(connect=connect_db()):
     #функция которая создает задачи
     print('Введите данные о задаче.')
@@ -84,29 +95,101 @@ def create_task(connect=connect_db()):
             print(e)
             return
 
-create_task()
-
-def delete_task():
-    #функция удаления задачи 
-    pass
 
 
-def update_task():
-    #функция обновления задачи
-    pass
+def delete_task(id, connect=connect_db()):
+    #функция удаления задачи по id
+    try:
+        with connect.cursor() as cursor:
+            cursor.execute('''
+                            DELETE FROM task_table
+                            WHERE id = %s
+                            ''', (id,))
+            chek_rows(cursor)
+            connect.commit()
+    except Error as e:
+        print(e)
+        return
 
 
-def choose_task_status():
+
+def update_task(id, connect=connect_db()):
+    #функция обновления описания задачи
+    try:
+        description = input('Введите новое поисание.')
+        with connect.cursor() as cursor:
+            cursor.execute('''
+                            UPDATE task_table
+                            SET description = %s
+                            WHERE id = %s
+                            ''', (description, id))
+            chek_rows(cursor)
+            connect.commit()
+    except Error as e:
+        print(e)
+        return
+
+def choose_task_status(id, connect=connect_db()):
     #функция отметки задачи
-    pass
+    try:
+        print('''
+1. В процессе.
+2. Завершена.
+3. Не выполнена.
+''')
+        status_key = int(input('Выберите статус задачи.(1, 2, 3): '))
+        status_dict = {1: 'В процессе', 2: 'Завершена.', 3: 'Не выполнена.'}
+        with connect.cursor() as cursor:
+            cursor.execute('''
+                            UPDATE task_table
+                            SET status = %s
+                            WHERE id = %s
+                            ''', (status_dict[status_key], id))
+            chek_rows(cursor)
+            connect.commit()
+    except Error as e:
+        print(e) 
+        return
 
-def get_full_tasks():
+
+def get_all_tasks(connect=connect_db()):
     #вывод всех задач 
-    pass
+    try:
+        with connect.cursor() as cursor:
+            cursor.execute('''
+                            SELECT *
+                            FROM task_table
+                            ''')
+            data_table = cursor.fetchall()
+            for i in data_table:
+                print(*i)
+            connect.commit()
+            return
+    except Error as e:
+        print(e)
+        return
+    
+ 
 
-def get_completed_tasks():
+def get_completed_tasks(connect=connect_db()):
     #вывод выполненных задач 
-    pass
+    try:
+        with connect.cursor() as cursor:
+            cursor.execute('''
+                            SELECT *
+                            FROM task_table
+                            WHERE status='Завершена.'
+                            ''')
+            data_table = cursor.fetchall()
+            for i in data_table:
+                print(*i)
+            connect.commit()
+            return
+    except Error as e:
+        print(e)
+        return
+    
+
 
 def get_not_completed_tasks():
     #вывод не выполненных задач 
